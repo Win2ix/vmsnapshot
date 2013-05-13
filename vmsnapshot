@@ -1,0 +1,142 @@
+#!/bin/bash
+
+# VMsnapshot
+# Copyright 2013 Ryan Babchishin <rbabchishin@win2ix.ca> http://www.win2ix.ca
+# version = '0.1';
+
+#begin GPL
+#    This file is part of VMsnapshot.
+#
+#    VMsnapshot is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    VMsnapshot is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with VMsnapshot.  If not, see <http://www.gnu.org/licenses/>.
+#end GPL
+
+# Subroutine to print and log 
+_log () {
+        echo $1
+        logger -t vmsnapshot "$1"  
+}
+
+# Less intrusive if you disable state saving 
+# at the expense of an inconsistent filesystem
+saveState=enabled
+
+# List of libvirt VMs, separated by newlines
+guests=$(virsh list | grep running | awk '{print $2}')
+
+# For testing
+#guests=ubuntu_12.04_server_amd64
+
+# Snapshots will not grow larger than this
+snapshotSize=1G
+
+# Email recipient of errors, logs...
+email=root@win2ix.ca
+
+# Options to pass to DD (when copying snapshots)
+ddOptions="bs=100M conv=notrunc"
+
+# When using scp, actual location on the storage server
+backupDest=/volumes/pool1/backups/vm_states
+
+# Compress transfer with LZO
+lzop="lzop -c -1"
+
+# NFS mount that matches above scp path
+nfsDest="/backups/vm_states"
+
+if [ "$1" != "yes" ]; then {
+	echo "Are you sure?"
+	echo "Usage: $0 yes"
+	exit 255;
+} fi
+
+_log "----- Backup started $(date)"
+
+for guest in $guests ; do {
+	# Time the process
+	startTime=$(date)
+
+	if [ $saveState = 'enabled' ] ; then {
+		_log "Guest $guest going down for state save now: $startTime"
+	} else {
+		_log "State saving is disabled, snapshots will be inconsistent"
+	} fi
+
+	# Get time of the state save (or begin of snapshots)
+        stateTime=$(date +%Y%m%d_%H:%M)
+
+	# Save guest state and leave it in a stopped state
+	test $saveState = 'enabled' && virsh save $guest /$nfsDest/$guest.vmstate.$stateTime	
+
+	# Snapshot all logical volumes associated with this guest
+	logicalVolumes=$(virsh domblklist $guest | grep '/dev' | awk '{print $2}')
+	
+	for lvPath in $logicalVolumes ; do {
+		vgPath=$(echo $lvPath | cut -d'/' -f1-3)
+		lvName=$(basename $lvPath)
+		snapshotName=${lvName}_backup
+		_log "Snapshot: $lvPath -> $snapshotName"
+		lvcreate --snapshot $lvPath -n $snapshotName --size $snapshotSize
+		if [ $? -eq 0 ]; then {
+			# Record that the snapshot was created
+			snapshots=( "${snapshots[@]}" "$vgPath/$snapshotName" )
+		} else {
+			errorMessage="ERROR: Please remove potentialy stale backup snapshot: skipping"
+			_log $errorMessage
+			echo $errorMessage | mail -s "Backup error on $(hostname)"
+		} fi
+	} done
+
+	# Only do this if state saving is enabled
+	if [ $saveState = 'enabled' ] ; then {	
+	  # Resume the guest
+	  _log "Restoring guest state $guest"
+	  virsh restore /$nfsDest/$guest.vmstate
+	  if [ $? -ne 0 ]; then {
+		_log "Restore may have failed, leaving state file: /$nfsDest/$guest.vmstate"
+		_log "ERROR: $guest is probably down"
+		_log "Skipping guest $guest..."
+		_log "ERROR: $guest is probably down. Error restoring /$nfsDest/$guest.vmstate" | mail -s "Guest $guest may be down on $(hostname)"
+		continue
+	  } fi
+	
+	  # Show how long the guest was down for
+	  endTime=$(date)
+	  _log "Guest $guest been restored to previous state: $endTime"
+
+
+	} fi
+
+	# Send each snapshot for this guest that was taken
+	for snapshot in ${snapshots[@]} ; do {
+		snapshotName=$(basename $snapshot)
+		lvdisplay $snapshot | grep 'LV snapshot status' 2>&1 > /dev/null
+		if [ $? -eq 0 ]; then {
+		  _log "Transfer (dd+lzop): $snapshot -> $nfsDest/$guest/$snapshotName.snapshot.$stateTime.lzo"
+		  dd if=$snapshot $ddOptions | $lzop >  $nfsDest/$guest/$snapshotName.snapshot.$stateTime.lzo
+		  _log "Removing snapshot $snapshot"
+		  lvremove -f $snapshot
+		} else {
+			_log "ERROR, Not a snapshot: $snapshot (BAD)"
+			_log "Skipping..."
+		} fi	
+
+	} done
+
+	unset snapshots
+
+	_log "Backup complete: $guest @ $(date)"
+} done
+
+
+_log "----- Backup ended $(date)"

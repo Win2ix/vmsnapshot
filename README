@@ -1,0 +1,24 @@
+
+vmsnapshot is a script to snapshot all of the running libvirt virtual machines running on a server. It optionaly saves
+their state as well. If the machine state is saved, it's like putting your VM's into hibernate, then restoring them.
+
+
+Requirements:
+
+Besides a basic Ubuntu Linux install, you're need these packages
+
+lzop
+mailutils
+virsh
+libvirt-bin
+
+You'll need to be running virtual machines via libvirt and have them stored on LVM volumes
+
+
+Usage:
+
+1. Edit vmhostsnapshot and set "$email" to your email address
+2. Set "$saveState" to enabled or disabled depending on your preference
+3. Set "$nfsDest" to a path (nfs or not), and create subdirectories for each VM, and one called "vmstate"
+   e.g. /backups/host1, /backups/mailserver, /backups/vmstate
+2. Run ./vmhostsnapshot 
