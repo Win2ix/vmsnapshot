@@ -75,6 +75,9 @@ for guest in $guests ; do {
 	# Get time of the state save (or begin of snapshots)
         stateTime=$(date +%Y%m%d_%H:%M)
 
+	# Sync guest storage (incase we don't save state)
+	virsh send-key $guest KEY_LEFTALT KEY_SYSRQ KEY_S
+
 	# Save guest state and leave it in a stopped state
 	test $saveState = 'enabled' && virsh save $guest /$nfsDest/$guest.vmstate.$stateTime	
 
