@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Vmsnapshot : vmsnapshot" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Vmsnapshot</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/Win2ix/vmsnapshot">View on GitHub</a>
+
+          <h1 id="project_title">Vmsnapshot</h1>
+          <h2 id="project_tagline">vmsnapshot</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/Win2ix/vmsnapshot/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/Win2ix/vmsnapshot/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <p>vmsnapshot is a script to snapshot all of the running libvirt virtual machines running on a server. It optionaly saves
+their state as well. If the machine state is saved, it's like putting your VM's into hibernate, then restoring them.</p>
+
+<p>Requirements:</p>
+
+<p>Besides a basic Ubuntu Linux install, you're need these packages</p>
+
+<p>lzop
+mailutils
+virsh
+libvirt-bin</p>
+
+<p>You'll need to be running virtual machines via libvirt and have them stored on LVM volumes</p>
+
+<p>Usage:</p>
+
+<ol>
+<li>Edit vmhostsnapshot and set "$email" to your email address</li>
+<li>Set "$saveState" to enabled or disabled depending on your preference</li>
+<li>Set "$nfsDest" to a path (nfs or not), and create subdirectories for each VM, and one called "vmstate"
+e.g. /backups/host1, /backups/mailserver, /backups/vmstate</li>
+<li>Run ./vmhostsnapshot </li>
+</ol>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Vmsnapshot maintained by <a href="https://github.com/Win2ix">Win2ix</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
